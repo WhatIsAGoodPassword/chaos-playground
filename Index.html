@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOM Chaos Playground</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #ffffff;
+            --accent: #ff4757;
+            --accent-hover: #ff6b81;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            transition: background-color 0.3s;
+        }
+
+        /* Control Panel */
+        #control-deck {
+            position: sticky;
+            top: 0;
+            background: #000000;
+            padding: 15px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            border-bottom: 2px solid var(--accent);
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .tool-btn {
+            background: #2f3542;
+            color: white;
+            border: 2px solid transparent;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover {
+            background: #57606f;
+        }
+
+        .tool-btn.active {
+            background: var(--accent);
+            border-color: white;
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        #reset-btn {
+            background: #2ed573;
+            color: #000;
+            margin-left: auto;
+        }
+
+        #reset-btn:hover {
+            background: #7bed9f;
+        }
+
+        /* Playground Content */
+        #playground {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 40px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            transition: transform 0.2s;
+        }
+
+        /* Nuker Hover Effect */
+        body.nuker-active *:not(#control-deck):not(#control-deck *):hover {
+            outline: 2px dashed var(--accent) !important;
+            cursor: crosshair !important;
+            background-color: rgba(255, 71, 87, 0.1) !important;
+        }
+
+        /* Animations */
+        @keyframes explode {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2) rotate(5deg); opacity: 0.5; filter: blur(2px); }
+            100% { transform: scale(0) rotate(-15deg); opacity: 0; }
+        }
+
+        .nuked {
+            animation: explode 0.3s forwards ease-out;
+            pointer-events: none;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(45deg);
+                opacity: 0;
+            }
+        }
+
+        .falling {
+            animation: fall 1.5s forwards ease-in;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Control Deck (Immune to the Nuker) -->
+    <div id="control-deck">
+        <span style="font-weight: bold; margin-right: 10px;">🛠️ TOOLS:</span>
+        <button class="tool-btn" id="btn-nuker" onclick="setTool('nuker')">💥 Element Nuker</button>
+        <button class="tool-btn" id="btn-gravity" onclick="setTool('gravity')">🍎 Gravity Drop</button>
+        <button class="tool-btn" id="btn-scramble" onclick="scrambleText()">🔀 Scramble Text</button>
+        <button class="tool-btn" id="btn-disco" onclick="toggleDisco()">🪩 Disco Mode</button>
+        <button class="tool-btn" id="reset-btn" onclick="resetPage()">🔄 Reset Page</button>
+    </div>
+
+    <!-- Target Playground Area -->
+    <div id="playground">
+        <div class="hero">
+            <h1>Welcome to the Chaos Playground</h1>
+            <p>Select a tool from the top bar and click on anything below to destroy, drop, or mess with it.</p>
+            <button style="padding: 10px 20px; font-size: 16px; cursor: pointer;">Useless Button</button>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Target Box 1</h3>
+                <p>Click me with the Element Nuker to vaporize this card from the DOM.</p>
+            </div>
+            <div class="card">
+                <h3>Target Box 2</h3>
+                <p>Try using Gravity Drop to make elements fall off the bottom of the screen.</p>
+            </div>
+            <div class="card">
+                <h3>Target Box 3</h3>
+                <p>You can even nuke individual paragraphs, headers, or buttons inside these cards!</p>
+            </div>
+            <div class="card">
+                <h3>Target Box 4</h3>
+                <p>Hit the green "Reset Page" button at any time to restore everything back to normal.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTool = 'none';
+        let discoInterval = null;
+        // Save the original state of the playground so we can reset it later
+        const originalPlaygroundHTML = document.getElementById('playground').innerHTML;
+
+        function setTool(tool) {
+            // Toggle off if clicking the active tool
+            if (currentTool === tool) {
+                currentTool = 'none';
+            } else {
+                currentTool = tool;
+            }
+
+            // Update button styles
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            document.body.classList.remove('nuker-active');
+
+            if (currentTool === 'nuker') {
+                document.getElementById('btn-nuker').classList.add('active');
+                document.body.classList.add('nuker-active');
+            } else if (currentTool === 'gravity') {
+                document.getElementById('btn-gravity').classList.add('active');
+            }
+        }
+
+        // Listen for clicks anywhere in the playground
+        document.getElementById('playground').addEventListener('click', function(e) {
+            // Prevent default button/link actions while tools are active
+            if (currentTool !== 'none') {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            const target = e.target;
+            // Don't delete the main playground wrapper itself
+            if (target.id === 'playground') return;
+
+            if (currentTool === 'nuker') {
+                target.classList.add('nuked');
+                // Remove from DOM after animation finishes
+                setTimeout(() => target.remove(), 300);
+            } 
+            else if (currentTool === 'gravity') {
+                target.classList.add('falling');
+                setTimeout(() => target.remove(), 1500);
+            }
+        });
+
+        // Feature: Scramble all text on the page
+        function scrambleText() {
+            const elements = document.querySelectorAll('#playground h1, #playground h3, #playground p, #playground button');
+            elements.forEach(el => {
+                const text = el.innerText;
+                const scrambled = text.split('').sort(() => 0.5 - Math.random()).join('');
+                el.innerText = scrambled;
+            });
+        }
+
+        // Feature: Disco background colors
+        function toggleDisco() {
+            const btn = document.getElementById('btn-disco');
+            if (discoInterval) {
+                clearInterval(discoInterval);
+                discoInterval = null;
+                document.body.style.backgroundColor = 'var(--bg-color)';
+                btn.classList.remove('active');
+            } else {
+                btn.classList.add('active');
+                discoInterval = setInterval(() => {
+                    const randomColor = `hsl(${Math.random() * 360}, 70%, 20%)`;
+                    document.body.style.backgroundColor = randomColor;
+                }, 200);
+            }
+        }
+
+        // Feature: Restore the page
+        function resetPage() {
+            document.getElementById('playground').innerHTML = originalPlaygroundHTML;
+            if (discoInterval) toggleDisco(); // Turn off disco if running
+            setTool('none'); // Reset active tool
+        }
+    </script>
+</body>
+</html>
